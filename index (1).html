@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Describe it. We'll build it. — AI Website Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #15120F;
+    --panel: #1C1712;
+    --panel-raised: #221C16;
+    --ink: #F2ECE2;
+    --ink-soft: #B7AA9A;
+    --line: #362D24;
+    --gold: #C9A227;
+    --gold-dim: #8A7220;
+    --rust: #B8583C;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Work Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: minmax(320px, 420px) 1fr;
+    min-height: 100vh;
+  }
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+  }
+
+  /* ---------- Left: commission panel ---------- */
+  .left {
+    padding: 48px 40px;
+    border-right: 1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+  }
+  @media (max-width: 860px) {
+    .left { border-right: none; border-bottom: 1px solid var(--line); padding: 36px 24px; }
+  }
+
+  .brand { font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--gold); }
+
+  h1 {
+    font-family: "Fraunces", serif;
+    font-weight: 500;
+    font-size: clamp(30px, 4vw, 38px);
+    line-height: 1.18;
+    margin: 0;
+    max-width: 14ch;
+  }
+
+  .lede {
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin: 0;
+    max-width: 42ch;
+  }
+
+  label.field-label {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  textarea#prompt {
+    width: 100%;
+    min-height: 120px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    color: var(--ink);
+    font-family: "Work Sans", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 14px 16px;
+    resize: vertical;
+  }
+  textarea#prompt:focus {
+    outline: none;
+    border-color: var(--gold-dim);
+  }
+  textarea#prompt::placeholder { color: #6B5F51; }
+
+  .examples { display: flex; flex-direction: column; gap: 8px; }
+  .example-btn {
+    text-align: left;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    padding: 10px 14px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-family: "Work Sans", sans-serif;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+  .example-btn:hover { border-color: var(--gold-dim); color: var(--ink); }
+
+  button#generate {
+    background: var(--gold);
+    color: #1A1509;
+    border: none;
+    padding: 14px 20px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: "Work Sans", sans-serif;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  button#generate:hover { background: #DDB639; }
+  button#generate:disabled {
+    background: var(--panel-raised);
+    color: var(--ink-soft);
+    cursor: not-allowed;
+  }
+
+  .status {
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-family: "IBM Plex Mono", monospace;
+    min-height: 18px;
+  }
+  .status.error { color: var(--rust); }
+
+  .footnote {
+    margin-top: auto;
+    font-size: 12px;
+    color: #6B5F51;
+    line-height: 1.6;
+  }
+  .footnote a { color: var(--ink-soft); }
+
+  /* ---------- Right: result ---------- */
+  .right {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 16px 24px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .tab {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .tab.active { color: var(--ink); border-bottom-color: var(--gold); }
+
+  .result-area {
+    flex: 1;
+    position: relative;
+    background: var(--panel);
+  }
+
+  #emptyState {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    color: #6B5F51;
+    padding: 24px;
+    text-align: center;
+  }
+  #emptyState .mark {
+    font-family: "Fraunces", serif;
+    font-size: 42px;
+    color: var(--line);
+  }
+  #emptyState p { max-width: 34ch; font-size: 14px; line-height: 1.5; margin: 0; }
+
+  iframe#preview {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: #fff;
+    display: none;
+  }
+
+  pre#codeView {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 24px;
+    overflow: auto;
+    display: none;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .result-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px 24px;
+    border-top: 1px solid var(--line);
+  }
+  #downloadBtn {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    padding: 8px 16px;
+    border-radius: 3px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    cursor: pointer;
+  }
+  #downloadBtn:hover { border-color: var(--gold-dim); color: var(--ink); }
+  #downloadBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="left">
+    <div class="brand">AI Website Generator</div>
+    <h1>Describe it. We'll build it.</h1>
+    <p class="lede">
+      Write a plain-language description of a website. The system generates
+      a complete page from it — live and ready to look at, on the right.
+    </p>
+
+    <div>
+      <label class="field-label" for="prompt">What do you want built?</label>
+      <textarea id="prompt" placeholder="A landing page for a cozy neighborhood bakery, warm colors, a hero section, a menu, and a contact form."></textarea>
+    </div>
+
+    <div class="examples">
+      <button class="example-btn" data-prompt="A portfolio site for a photographer, dark theme, image-focused">A portfolio for a photographer, dark and image-focused</button>
+      <button class="example-btn" data-prompt="A pricing page for a SaaS product with 3 tiers">A pricing page for a SaaS product, 3 tiers</button>
+      <button class="example-btn" data-prompt="A landing page for a fitness app, energetic colors, call to action">A landing page for a fitness app, energetic</button>
+    </div>
+
+    <button id="generate">Generate website</button>
+    <div id="status" class="status"></div>
+
+    <div class="footnote">
+      Built by Tripti Sharma. Source on
+      <a href="https://github.com/Triptisharma-irl/ai-website-generator">GitHub</a>.
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="tabs">
+      <button class="tab active" data-tab="preview">Preview</button>
+      <button class="tab" data-tab="code">Code</button>
+    </div>
+    <div class="result-area">
+      <div id="emptyState">
+        <div class="mark">✳</div>
+        <p>Nothing built yet — describe a website on the left to get started.</p>
+      </div>
+      <iframe id="preview" title="Generated website preview"></iframe>
+      <pre id="codeView"></pre>
+    </div>
+    <div class="result-footer">
+      <button id="downloadBtn" disabled>Download HTML</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const promptEl = document.getElementById('prompt');
+  const generateBtn = document.getElementById('generate');
+  const statusEl = document.getElementById('status');
+  const emptyState = document.getElementById('emptyState');
+  const preview = document.getElementById('preview');
+  const codeView = document.getElementById('codeView');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const tabs = document.querySelectorAll('.tab');
+
+  let currentHtml = '';
+  let activeTab = 'preview';
+
+  document.querySelectorAll('.example-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      promptEl.value = btn.dataset.prompt;
+      promptEl.focus();
+    });
+  });
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      activeTab = tab.dataset.tab;
+      renderActiveTab();
+    });
+  });
+
+  function renderActiveTab() {
+    if (!currentHtml) return;
+    preview.style.display = activeTab === 'preview' ? 'block' : 'none';
+    codeView.style.display = activeTab === 'code' ? 'block' : 'none';
+  }
+
+  downloadBtn.addEventListener('click', () => {
+    if (!currentHtml) return;
+    const blob = new Blob([currentHtml], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'generated_website.html';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  generateBtn.addEventListener('click', async () => {
+    const prompt = promptEl.value.trim();
+    if (!prompt) {
+      statusEl.textContent = 'Describe a website first.';
+      statusEl.classList.add('error');
+      return;
+    }
+
+    statusEl.classList.remove('error');
+    statusEl.textContent = 'Building your website…';
+    generateBtn.disabled = true;
+
+    try {
+      const res = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Something went wrong.');
+      }
+
+      currentHtml = data.html;
+      emptyState.style.display = 'none';
+      preview.srcdoc = currentHtml;
+      codeView.textContent = currentHtml;
+      downloadBtn.disabled = false;
+      renderActiveTab();
+      statusEl.textContent = 'Done.';
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.classList.add('error');
+    } finally {
+      generateBtn.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>
